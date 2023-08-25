@@ -36,6 +36,42 @@ glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 //VBO Pyramide
 GLuint VBOpyramide, VAOpyramide, EBOpyramide, texturePyramide;
 
+//VBO Points
+GLuint VBOpoints, VAOpoints, EBOpoints;
+
+
+
+void renderPoints()
+{
+GLfloat vertices[] =
+{
+    2.0f, 1.5f, 0.0f, 1.0f,
+    1.0f, 2.0f, 0.0f, 1.0f,
+    1.5f, 1.5f, 0.0f, 1.0f
+};
+
+// This creates our identifier and puts it in vbo
+    glGenBuffers(1, &VBOpoints);
+// This binds our vbo
+    glBindBuffer(GL_ARRAY_BUFFER, VBOpoints);
+// This hands the vertices into the vbo and to the rendering pipeline    
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // "Enable a port" to the shader pipeline
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOpoints);
+// pass information about how vertex array is composed
+    glVertexAttribPointer(0, // same as in glEnableVertexAttribArray(0)
+                      4, // # of coordinates that build a vertex
+                      GL_FLOAT, // data type
+                      GL_FALSE, // normalized?
+                      0,        // stride
+                      (void*)0);// vbo offset
+    glPointSize(10);
+    glDrawArrays(GL_POINTS, 0, 3);
+    glDisableVertexAttribArray(0);
+}
+
+
 void PyramidBuffer()
 {
 // Position and color data
@@ -314,6 +350,8 @@ int main()
 
         glBindVertexArray(VAOpyramide);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        renderPoints();
+        glDrawArrays(GL_POINTS, 0, 1);
         // glfw: обмен содержимым front- и back- буферов. Отслеживание событий ввода/вывода (была ли нажата/отпущена кнопка, перемещен курсор мыши и т.п.)
         glfwSwapBuffers(window);
         glfwPollEvents();
