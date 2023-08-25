@@ -48,7 +48,7 @@ public:
             vertexCode = vShaderStream.str();
             fragmentCode = fShaderStream.str();
 			
-            // Если путь геометрического шейдера присутствует, то также загружаем геометрический шейдер
+            // Если путь к геометрическому шейдеру присутствует, то также загружаем и геометрический шейдер
             if (geometryPath != nullptr)
             {
                 gShaderFile.open(geometryPath);

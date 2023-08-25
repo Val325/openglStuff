@@ -1,43 +1,146 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <CImg/CImg.h>
-#include <iostream>
-#include "loadall.cpp"
-#include "stb_image.cpp"
+#include "stb_image.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "loadall.cpp"
 #include "camera.cpp"
 
-using namespace cimg_library;
+#include <iostream>
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void processInput(GLFWwindow* window);
 
-const unsigned int WINDOW_WIDTH = 800;
-const unsigned int WINDOW_HEIGHT = 600;
+// Константы
+const unsigned int SCR_WIDTH = 600;
+const unsigned int SCR_HEIGHT = 400;
 
 // Камера
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-float lastX = WINDOW_WIDTH / 2.0f;
-float lastY = WINDOW_HEIGHT / 2.0f;
-
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
 // Тайминги
-float deltaTime = 0.0f;	// время между текущим кадром и последним кадром
+float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+ 
+// Освещение 
+glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
-int main(){
+//VBO Pyramide
+GLuint VBOpyramide, VAOpyramide, EBOpyramide, texturePyramide;
+
+void PyramidBuffer()
+{
+// Position and color data
+ // Define a 3D pyramid. 
+    GLfloat vertices[] = {
+
+        // Triangle 1
+        0.0,1.0,0.0,
+        1.0,0.0,0.0,
+
+        -1.0,-1.0,1.0,
+        0.0,1.0,0.0,
+
+        1.0,-1.0,1.0,
+        0.0,0.0,1.0,
+
+        //Triangle 2
+        0.0,1.0,0.0,
+        1.0,0.0,0.0,
+
+        1.0,-1.0,1.0,
+        0.0,0.0,1.0,
+
+        1.0,-1.0,-1.0,
+        0.0,1.0,0.0,
+
+        //Triangle 3
+        0.0,1.0,0.0,
+        1.0,0.0,0.0,
+
+        1.0,-1.0,-1.0,
+        0.0,1.0,0.0,
+
+        -1.0,-1.0,-1.0,
+        0.0,0.0,1.0,
+
+        //Triangle 4
+        0.0,1.0,0.0,
+        1.0,0.0,0.0,
+
+        -1.0,-1.0,-1.0,
+        0.0,0.0,1.0,
+
+        -1.0,-1.0,1.0,
+        0.0,1.0,0.0
+
+    };
+    GLubyte indices[] = {
+    // First triangle
+        0, 1, 2,
+    // Second triangle
+        3, 4, 5,
+    // Third triangle
+        6, 7, 8,
+    // Fourth triangle
+        9, 10, 11,
+    };
+  
+	// Generate buffer ids
+	glGenVertexArrays(1, &VAOpyramide);
+	glGenBuffers(1, &VBOpyramide);
+	glGenBuffers(1, &EBOpyramide);
+
+	// Activate the vertex array object before binding and settomg any VBOs or vertex attribute pointers
+	glBindVertexArray(VAOpyramide);
+
+	// Activate the VBO
+	glBindBuffer(GL_ARRAY_BUFFER, VBOpyramide);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	// Activate the lement buffer object / indicies
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOpyramide);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+			GL_STATIC_DRAW);
+
+	// set attribute pointer 0 to hold position data
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);	
+	glEnableVertexAttribArray(0);
+
+	// Set attribute pointer 1 to hold Color data
+	    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+
+	// Sets polygon mode allows me to see wireframe view
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	glBindVertexArray(VAOpyramide);
+
+}
+
+
+
+int main()
+{
+    // glfw: инициализация и конфигурирование
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "OpenGL", NULL, NULL);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // раскомментируйте эту строку, если используете macOS
+#endif
+
+    // glfw: создание окна
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Light shit", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -47,288 +150,231 @@ int main(){
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
-	  glfwSetScrollCallback(window, scroll_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
-    // Сообщаем GLFW, чтобы он захватил наш курсор 
-	  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // Сообщаем GLFW, чтобы он захватил наш курсор
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    // glad: загрузка всех указателей на OpenGL-функции
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+
+    // Конфигурирование глобального состояния OpenGL
     glEnable(GL_DEPTH_TEST);
-    //shaders
-    Shader ourShader("texture.vs", "texture.fs");
+
+    // Компилирование нашей шейдерной программы
+    Shader pyramideShader("basic_lighting_pyramide.vs", "basic_lighting_pyramide.fs");
+    Shader lightingShader("basic_lighting.vs", "basic_lighting.fs");
+    Shader lampShader("lamp.vs", "lamp.fs");
+
+    // Указание вершин (и буфера(ов)) и настройка вершинных атрибутов
+    float vertices[] = {
+            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+             0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+             0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+             0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+
+            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+             0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+             0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+             0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+             0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+             0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+             0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+             0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+             0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+             0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+             0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+             0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+             0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+             0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+             0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+    };
     
-    /*
-    //vertex shader
-    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
 
-    //if get erros
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
 
-    // fragmentShader
-    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
+    // 1. Настраиваем VAO (и VBO) куба
+    unsigned int VBO, cubeVAO;
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &VBO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glBindVertexArray(cubeVAO);
+
+    // Координатные атрибуты
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 	
-    //if get errors
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
+    // Атрибуты нормалей
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
-    //linking shaders
-    int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    
-    //if get erros
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-    */
- 
-// Указание вершин (и буфера(ов)) и настройка вершинных атрибутов
-	float vertices[] = {
-		  // координаты        // текстурные координаты
-		 -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-		  0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-		  0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		  0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		 -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+    // 2. Настраиваем VAO света (VBO остается неизменным; вершины те же и для светового объекта, который также является 3D-кубом)
+    unsigned int lightVAO;
+    glGenVertexArrays(1, &lightVAO);
+    glBindVertexArray(lightVAO);
 
-		 -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		  0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		  0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		  0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		 -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-		 -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-		 -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		 -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		 -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    // Обратите внимание, что мы обновляем шаг атрибута положения лампы, чтобы отразить обновленные данные буфера
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 
-		  0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		  0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		  0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		  0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		  0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		  0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
 
-		 -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		  0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-		  0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		  0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		 -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		 -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-		 -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		  0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		  0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		  0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		 -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-		 -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-	};
-
-    // Мировые координаты наших кубиков
-	  glm::vec3 cubePositions[] = {
-		  glm::vec3(0.0f,  0.0f,  0.0f),
-		  glm::vec3(2.0f,  5.0f, -15.0f),
-		  glm::vec3(-1.5f, -2.2f, -2.5f),
-		  glm::vec3(-3.8f, -2.0f, -12.3f),
-	  	glm::vec3(2.4f, -0.4f, -3.5f),
-		  glm::vec3(-1.7f,  3.0f, -7.5f),
-		  glm::vec3(1.3f, -2.0f, -2.5f),
-		  glm::vec3(1.5f,  2.0f, -2.5f),
-		  glm::vec3(1.5f,  0.2f, -1.5f),
-		  glm::vec3(-1.3f,  1.0f, -1.5f)
-	};
-  unsigned int VBO, VAO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-
-	glBindVertexArray(VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	// Координатные атрибуты
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	// Атрибуты текстурных координат
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1); 
-
-    // Загрузка и создание текстуры
-    unsigned int texture1, texture2;
-    glGenTextures(1, &texture1);
-    glBindTexture(GL_TEXTURE_2D, texture1); // все последующие GL_TEXTURE_2D-операции теперь будут влиять на данный текстурный объект
-    // Установка параметров наложения текстуры
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	
-    // Установка параметров фильтрации текстуры
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Загрузка изображения, создание текстуры и генерирование мипмап-уровней
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true); // указываем stb_image.h на то, чтобы перевернуть для загруженной текстуры ось y
-    unsigned char* data = stbi_load("dodik.jpg", &width, &height, &nrChannels, 0);;
-    if (data)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
-
-    // Текстура №2 - Смайлик
-    glGenTextures(1, &texture2);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    // Установка параметров наложения текстуры
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	
-    // Установка параметров фильтрации текстуры
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    // Загрузка изображения, создание текстуры и генерирование мипмап-уровней
-    data = stbi_load("pistol.png", &width, &height, &nrChannels, 0);
-    if (data)
-    {
-        // Файл awesomeface.png имеет альфа-канал (прозрачность), поэтому необходимо использовать пераметр GL_RGBA
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
-
-    // Указываем OpenGL, какой сэмплер к какому текстурному блоку принадлежит (это нужно сделать единожды) 
-	  ourShader.use();
-	  ourShader.setInt("texture1", 0);
-	  ourShader.setInt("texture2", 1);
-
- 
-
+    // Цикл рендеринга
     while (!glfwWindowShouldClose(window))
     {
         // Логическая часть работы со временем для каждого кадра
-		    float currentFrame = glfwGetTime();
-		    deltaTime = currentFrame - lastFrame;
-		    lastFrame = currentFrame;
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
+        // Обработка ввода
         processInput(window);
-		
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // очищаем буфер цвета и буфер глубины
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2);
 
-        ourShader.use();
+        // Рендеринг
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Убеждаемся, что активировали шейдер прежде, чем настраивать uniform-переменные/объекты_рисования
+        lightingShader.use(); 
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos);
+
+        // Преобразования Вида/Проекции
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        // Мировое преобразование
+        glm::mat4 transform = glm::mat4(1.0f); // сначала инициализируем единичную матрицу
+        glm::mat4 model = glm::mat4(1.0f);
+        lightingShader.setMat4("model", model);
+
+        // Рендеринг куба
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // Также отрисовываем наш объект-"лампочку" 
+        lampShader.use();               
+        lampShader.setMat4("projection", projection);
+        lampShader.setMat4("view", view);
+        model = glm::mat4(1.0f); 
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f)); // куб меньшего размера
+        lampShader.setMat4("model", model);
+
+        glBindVertexArray(lightVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
         
-        // Передаем шейдеру матрицу проекции (поскольку проекционная матрица редко меняется, то нет необходимости делать это для каждого кадра)
-		    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)WINDOW_WIDTH / (float)WINDOW_WIDTH, 0.1f, 100.0f);
-		    ourShader.setMat4("projection", projection);
 
-		    // Создаем преобразование камеры/вида
-		    glm::mat4 view = camera.GetViewMatrix();
-		    ourShader.setMat4("view", view);
+        //PyramidBuffer();
+        //
+        PyramidBuffer();
+        // Создаем преобразование
+        glm::mat4 transformPyramide = glm::mat4(1.0f); // сначала инициализируем единичную матрицу
+        transformPyramide = glm::translate(transform, glm::vec3(0.0f, -0.5f, 3.0f));
+        transformPyramide = glm::scale(transformPyramide, glm::vec3(0.5f)); // куб меньшего размера
+        //transformPyramide = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
 
-		    // Рендерим ящик
-		    glBindVertexArray(VAO);
-		    for (unsigned int i = 0; i < 10; i++){
-			    // Вычисляем матрицу модели для каждого объекта и передаем её в шейдер до отрисовки
-			    glm::mat4 model = glm::mat4(1.0f);
-			    model = glm::translate(model, cubePositions[i]);
-			    float angle = 20.0f * i;
-			    model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-			    ourShader.setMat4("model", model);
+        // Убеждаемся, что активировали шейдер прежде, чем настраивать uniform-переменные/объекты_рисования
+        lightingShader.use(); 
+        lightingShader.setVec3("objectColor", 0.0f, 1.0f, 0.0f);
+        //lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        //lightingShader.setVec3("lightPos", lightPos);
+        lightingShader.setMat4("model", transformPyramide);
 
-			    glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-
+        glBindVertexArray(VAOpyramide);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // glfw: обмен содержимым front- и back- буферов. Отслеживание событий ввода/вывода (была ли нажата/отпущена кнопка, перемещен курсор мыши и т.п.)
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1, &VAO);
+    // Опционально: освобождаем все ресурсы, как только они выполнили свое предназначение
+    glDeleteVertexArrays(1, &cubeVAO);
+    glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &VBO);
 
+    // glfw: завершение, освобождение всех выделенных ранее GLFW-реcурсов
     glfwTerminate();
     return 0;
 }
-void processInput(GLFWwindow *window)
-{
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);
 
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.ProcessKeyboard(FORWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.ProcessKeyboard(BACKWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.ProcessKeyboard(LEFT, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.ProcessKeyboard(RIGHT, deltaTime);
+// Обработка всех событий ввода: запрос GLFW о нажатии/отпускании кнопки мыши в данном кадре и соответствующая обработка данных событий
+void processInput(GLFWwindow* window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
+// glfw: всякий раз, когда изменяются размеры окна (пользователем или операционной системой), вызывается данная callback-функция
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
+    // Убеждаемся, что окно просмотра соответствует новым размерам окна.
+    // Обратите внимание, ширина и высота будут значительно больше, чем указано, на Retina-дисплеях
     glViewport(0, 0, width, height);
 }
 
-//  glfw: всякий раз, когда перемещается мышь, вызывается данная callback-функция
-void mouse_callback(GLFWwindow * window, double xpos, double ypos)
+
+// glfw: всякий раз, когда перемещается мышь, вызывается данная callback-функция
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-  if (firstMouse)
-	{
-		lastX = xpos;
-		lastY = ypos;
-		firstMouse = false;
-	}
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
 
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos; // перевернуто, так как y-координаты идут снизу вверх
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // перевернуто, так как y-координаты идут снизу вверх
 
-	lastX = xpos;
-	lastY = ypos;
+    lastX = xpos;
+    lastY = ypos;
 
-	camera.ProcessMouseMovement(xoffset, yoffset);
+    camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: всякий раз, когда прокручивается колесико мыши, вызывается данная callback-функция
-void scroll_callback(GLFWwindow * window, double xoffset, double yoffset)
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-  camera.ProcessMouseScroll(yoffset);
+    camera.ProcessMouseScroll(yoffset);
 }
