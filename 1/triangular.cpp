@@ -39,35 +39,57 @@ GLuint VBOpyramide, VAOpyramide, EBOpyramide, texturePyramide;
 //VBO Points
 GLuint VBOpoints, VAOpoints, EBOpoints;
 
-
+float random_float(){
+  float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  return r;
+}
 
 void renderPoints()
 {
 GLfloat vertices[] =
 {
-    2.0f, 1.5f, 0.0f, 1.0f,
-    1.0f, 2.0f, 0.0f, 1.0f,
-    1.5f, 1.5f, 0.0f, 1.0f
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),   
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float(),
+    random_float(), random_float(), random_float(), random_float()   
+
 };
 
-// This creates our identifier and puts it in vbo
+    // This creates our identifier and puts it in vbo
     glGenBuffers(1, &VBOpoints);
-// This binds our vbo
+    // This binds our vbo
     glBindBuffer(GL_ARRAY_BUFFER, VBOpoints);
-// This hands the vertices into the vbo and to the rendering pipeline    
+    // This hands the vertices into the vbo and to the rendering pipeline    
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     // "Enable a port" to the shader pipeline
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, VBOpoints);
-// pass information about how vertex array is composed
+    // pass information about how vertex array is composed
     glVertexAttribPointer(0, // same as in glEnableVertexAttribArray(0)
                       4, // # of coordinates that build a vertex
                       GL_FLOAT, // data type
                       GL_FALSE, // normalized?
                       0,        // stride
                       (void*)0);// vbo offset
-    glPointSize(10);
-    glDrawArrays(GL_POINTS, 0, 3);
+    glPointSize(3);
+    glDrawArrays(GL_POINTS, 0, 21);
     glDisableVertexAttribArray(0);
 }
 
@@ -147,11 +169,11 @@ void PyramidBuffer()
 			GL_STATIC_DRAW);
 
 	// set attribute pointer 0 to hold position data
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);	
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);	
 	glEnableVertexAttribArray(0);
 
 	// Set attribute pointer 1 to hold Color data
-	    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(1);
 
 	// Sets polygon mode allows me to see wireframe view
