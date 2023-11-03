@@ -1,13 +1,14 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "stb_image.h"
+//include <stb_image.h>
 
+#include <model.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "loadall.cpp"
-#include "camera.cpp"
+#include <loadall.hpp>
+#include <camera.hpp>
 
 #include <iostream>
 
@@ -65,10 +66,7 @@ GLfloat vertices[] =
     random_float(), random_float(), random_float(), random_float(),
     random_float(), random_float(), random_float(), random_float(),
     random_float(), random_float(), random_float(), random_float(),
-    random_float(), random_float(), random_float(), random_float(),
-    random_float(), random_float(), random_float(), random_float(),
-    random_float(), random_float(), random_float(), random_float(),
-    random_float(), random_float(), random_float(), random_float()   
+    random_float(), random_float(), random_float(), random_float()
 
 };
 
@@ -89,7 +87,7 @@ GLfloat vertices[] =
                       0,        // stride
                       (void*)0);// vbo offset
     glPointSize(3);
-    glDrawArrays(GL_POINTS, 0, 21);
+    glDrawArrays(GL_POINTS, 0, 18);
     glDisableVertexAttribArray(0);
 }
 
@@ -219,15 +217,20 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
+    stbi_set_flip_vertically_on_load(true);
     // Конфигурирование глобального состояния OpenGL
     glEnable(GL_DEPTH_TEST);
 
     // Компилирование нашей шейдерной программы
-    Shader pyramideShader("basic_lighting_pyramide.vs", "basic_lighting_pyramide.fs");
-    Shader lightingShader("basic_lighting.vs", "basic_lighting.fs");
-    Shader lampShader("lamp.vs", "lamp.fs");
+    Shader pyramideShader("shaders/basic_lighting_pyramide.vs", "shaders/basic_lighting_pyramide.fs");
+    Shader lightingShader("shaders/basic_lighting.vs", "shaders/basic_lighting.fs");
+    Shader lampShader("shaders/lamp.vs", "shaders/lamp.fs");
+    Shader pointShader("shaders/point.vs","shaders/point.fs");
+    Shader modelShader("shaders/model_loading.vs", "shaders/model_loading.fs");
 
+    //loading model
+    Model ourModel("model/Rifle.obj");
+    
     // Указание вершин (и буфера(ов)) и настройка вершинных атрибутов
     float vertices[] = {
             -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
@@ -365,18 +368,38 @@ int main()
 
         // Убеждаемся, что активировали шейдер прежде, чем настраивать uniform-переменные/объекты_рисования
         lightingShader.use(); 
-        lightingShader.setVec3("objectColor", 0.0f, 1.0f, 0.0f);
+        lightingShader.setVec3("objectColor", 0.0f, 0.5f, 0.0f);
         //lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
         //lightingShader.setVec3("lightPos", lightPos);
         lightingShader.setMat4("model", transformPyramide);
 
         glBindVertexArray(VAOpyramide);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+
+
+	lightingShader.setVec3("objectColor", 1.0f, 0.0f, 0.0f);
         renderPoints();
-        glDrawArrays(GL_POINTS, 0, 1);
+	
+        modelShader.use();
+
+        // Преобразования Вида/Проекции
+        modelShader.setMat4("projection", projection);
+        modelShader.setMat4("view", view);
+
+        // Рендеринг загруженной модели
+        glm::mat4 model_obj = glm::mat4(1.0f);
+        model_obj = glm::translate(model_obj, glm::vec3(0.0f, 0.0f, 0.0f)); // смещаем вниз чтобы быть в центре сцены
+        model_obj = glm::scale(model_obj, glm::vec3(1.0f, 1.0f, 1.0f));	// объект слишком большой для нашей сцены, поэтому немного уменьшим его
+        modelShader.setMat4("model", model_obj);
+        ourModel.Draw(lightingShader);
+
+   
+	
+	glDrawArrays(GL_POINTS, 0, 1);
         // glfw: обмен содержимым front- и back- буферов. Отслеживание событий ввода/вывода (была ли нажата/отпущена кнопка, перемещен курсор мыши и т.п.)
         glfwSwapBuffers(window);
         glfwPollEvents();
+
     }
 
     // Опционально: освобождаем все ресурсы, как только они выполнили свое предназначение
