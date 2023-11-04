@@ -34,11 +34,14 @@ float lastFrame = 0.0f;
 // Освещение 
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
+
 //VBO Pyramide
 GLuint VBOpyramide, VAOpyramide, EBOpyramide, texturePyramide;
 
 //VBO Points
 GLuint VBOpoints, VAOpoints, EBOpoints;
+
+
 
 float random_float(){
   float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
@@ -217,7 +220,7 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-    stbi_set_flip_vertically_on_load(true);
+    //stbi_set_flip_vertically_on_load(true);
     // Конфигурирование глобального состояния OpenGL
     glEnable(GL_DEPTH_TEST);
 
@@ -229,7 +232,7 @@ int main()
     Shader modelShader("shaders/model_loading.vs", "shaders/model_loading.fs");
 
     //loading model
-    Model ourModel("model/Rifle.obj");
+    Model ourModel("model/cat_folder/Cat.obj");
     
     // Указание вершин (и буфера(ов)) и настройка вершинных атрибутов
     float vertices[] = {
@@ -307,7 +310,8 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-
+    TextureFromFile("Cat_diffuse.jpg", "model/cat_folder", false);
+    TextureFromFile("Cat_bump.jpg", "model/cat_folder", true); 
     // Цикл рендеринга
     while (!glfwWindowShouldClose(window))
     {
@@ -388,12 +392,13 @@ int main()
 
         // Рендеринг загруженной модели
         glm::mat4 model_obj = glm::mat4(1.0f);
-        model_obj = glm::translate(model_obj, glm::vec3(0.0f, 0.0f, 0.0f)); // смещаем вниз чтобы быть в центре сцены
-        model_obj = glm::scale(model_obj, glm::vec3(1.0f, 1.0f, 1.0f));	// объект слишком большой для нашей сцены, поэтому немного уменьшим его
-        modelShader.setMat4("model", model_obj);
-        ourModel.Draw(lightingShader);
+        model_obj = glm::translate(model_obj, glm::vec3(2.0f, 2.0f, 0.0f)); // смещаем вниз чтобы быть в центре сцены
+        model_obj = glm::scale(model_obj, glm::vec3(0.01f, 0.01f, 0.01f));	// объект слишком большой для нашей сцены, поэтому немного уменьшим его
+	model_obj = glm::rotate(model_obj, glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+	modelShader.setMat4("model", model_obj);
+        ourModel.Draw(modelShader);
 
-   
+	//
 	
 	glDrawArrays(GL_POINTS, 0, 1);
         // glfw: обмен содержимым front- и back- буферов. Отслеживание событий ввода/вывода (была ли нажата/отпущена кнопка, перемещен курсор мыши и т.п.)
