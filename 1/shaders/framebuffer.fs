@@ -17,9 +17,9 @@ vec2 offsets[9] = vec2[]
 
 float kernel[9] = float[]
 (
-    1,  1, 1,
-    1, -8, 1,
-    1,  1, 1
+    0,  0, 0,
+    0, 1, 0,
+    0,  0, 0
 );
 
 void main()
