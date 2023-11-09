@@ -244,7 +244,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+    glfwWindowHint(GLFW_SAMPLES, 8);
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // раскомментируйте эту строку, если используете macOS
 #endif
@@ -287,9 +287,56 @@ int main()
     Shader framebufferProgram("shaders/framebuffer.vs", "shaders/framebuffer.fs");
     Shader shaderCubemap("shaders/cubemaps.vs", "shaders/cubemaps.fs");
     Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
+    Shader catInstanceShader("shaders/cat_instance.vs", "shaders/cat_instance.fs");
     //loading model
     Model ourModel("model/cat_folder/Cat.obj");
-    
+
+    unsigned int amount = 10;
+    glm::mat4* modelMatrices;
+    modelMatrices = new glm::mat4[amount];
+    srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
+    //gen 100 cats
+    for (unsigned int i = 0; i < amount; i++)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+	int distance = 12;
+        float x = 50 + distance * i;
+        float y = 50 + distance * i;
+        float z = 50 + distance * i;
+
+	float scale = 0.01;
+	model = glm::scale(model, glm::vec3(0.01f, 0.01f, 0.01f));
+	model = glm::rotate(model, glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(x, y, z));
+        modelMatrices[i] = model;
+    }
+    // configure instanced array
+    // -------------------------
+    unsigned int buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
+
+    for (unsigned int i = 0; i < ourModel.meshes.size(); i++){
+        unsigned int VAO = ourModel.meshes[i].VAO;
+        glBindVertexArray(VAO);
+        // set attribute pointers for matrix (4 times vec4)
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+        glEnableVertexAttribArray(5);
+        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+        glEnableVertexAttribArray(6);
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+        glVertexAttribDivisor(5, 1);
+        glVertexAttribDivisor(6, 1);
+
+        glBindVertexArray(0);
+    }
     // Указание вершин (и буфера(ов)) и настройка вершинных атрибутов
     float vertices[] = {
             -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
@@ -448,10 +495,6 @@ int main()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-
-
-
-    
     // load textures
     // -------------
     vector<std::string> faces
@@ -466,21 +509,21 @@ int main()
 
     unsigned int cubemapTexture = loadCubemap(faces);
 
-	shaderCubemap.use();
-	shaderCubemap.setInt("skybox", 0);
-	skyboxShader.use();
-	skyboxShader.setInt("skybox", 0);
+    shaderCubemap.use();
+    shaderCubemap.setInt("skybox", 0);
+    skyboxShader.use();
+    skyboxShader.setInt("skybox", 0);
 
 
-    	// Enables the Depth Buffer
-	glEnable(GL_DEPTH_TEST);
+    // Enables the Depth Buffer
+    glEnable(GL_DEPTH_TEST);
 
-	// Enables Cull Facing
-	//glEnable(GL_CULL_FACE);
-	// Keeps front faces
-	//glCullFace(GL_FRONT);
-	// Uses counter clock-wise standard
-	//glFrontFace(GL_CCW);
+    // Enables Cull Facing
+    //glEnable(GL_CULL_FACE);
+    // Keeps front faces
+    //glCullFace(GL_FRONT);
+    // Uses counter clock-wise standard
+    //glFrontFace(GL_CCW);
     
     framebufferProgram.use();
     glUniform1i(glGetUniformLocation(framebufferProgram.ID, "screenTexture"), 0);
@@ -521,47 +564,46 @@ int main()
     TextureFromFile("Cat_diffuse.jpg", "model/cat_folder", false);
     TextureFromFile("Cat_bump.jpg", "model/cat_folder", true);
 
-    
-    	// Prepare framebuffer rectangle VBO and VAO
-	unsigned int rectVAO, rectVBO;
-	glGenVertexArrays(1, &rectVAO);
-	glGenBuffers(1, &rectVBO);
-	glBindVertexArray(rectVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, rectVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(rectangleVertices), &rectangleVertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    // Prepare framebuffer rectangle VBO and VAO
+    unsigned int rectVAO, rectVBO;
+    glGenVertexArrays(1, &rectVAO);
+    glGenBuffers(1, &rectVBO);
+    glBindVertexArray(rectVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, rectVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(rectangleVertices), &rectangleVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 	
     // Create Frame Buffer Object
-	unsigned int FBO;
-	glGenFramebuffers(1, &FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+    unsigned int FBO;
+    glGenFramebuffers(1, &FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
-	// Create Framebuffer Texture
-	unsigned int framebufferTexture;
-	glGenTextures(1, &framebufferTexture);
-	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
+    // Create Framebuffer Texture
+    unsigned int framebufferTexture;
+    glGenTextures(1, &framebufferTexture);
+    glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
 
-	// Create Render Buffer Object
-	unsigned int RBO;
-	glGenRenderbuffers(1, &RBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+    // Create Render Buffer Object
+    unsigned int RBO;
+    glGenRenderbuffers(1, &RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
 
-	// Error checking framebuffer
-	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "Framebuffer error: " << fboStatus << std::endl;
+    // Error checking framebuffer
+    auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+      std::cout << "Framebuffer error: " << fboStatus << std::endl;
 
     // Цикл рендеринга
     while (!glfwWindowShouldClose(window))
@@ -585,9 +627,8 @@ int main()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_MULTISAMPLE);  
 
-
-	
         // Убеждаемся, что активировали шейдер прежде, чем настраивать uniform-переменные/объекты_рисования
         lightingShader.use(); 
         lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
@@ -613,7 +654,6 @@ int main()
 
 
 
-	
         // Мировое преобразование
         glm::mat4 transform = glm::mat4(1.0f); // сначала инициализируем единичную матрицу
         glm::mat4 model = glm::mat4(1.0f);
@@ -658,6 +698,22 @@ int main()
         glBindVertexArray(0);
         //glDepthFunc(GL_ALWAYS); // set depth function back to default
 	glEnable(GL_DEPTH_TEST);
+
+	//instances
+
+	catInstanceShader.use();
+        catInstanceShader.setMat4("projection", projection);
+        catInstanceShader.setMat4("view", view);
+        catInstanceShader.setInt("texture_diffuse1", 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, ourModel.textures_loaded[0].id); // note: we also made the textures_loaded vector public (instead of private) from the model class.
+        for (unsigned int i = 0; i < ourModel.meshes.size(); i++)
+	  {
+            glBindVertexArray(ourModel.meshes[i].VAO);
+            glDrawElementsInstanced(GL_TRIANGLES, static_cast<unsigned int>(ourModel.meshes[i].indices.size()), GL_UNSIGNED_INT, 0, amount);
+            glBindVertexArray(0);
+	  }
+	
         // Также отрисовываем наш объект-"лампочку" 
         lampShader.use();               
         lampShader.setMat4("projection", projection);
@@ -711,16 +767,19 @@ int main()
 	modelShader.setMat4("model", model_obj);
         ourModel.Draw(modelShader);
 
+
+
+	
 	if (framebufOn){
-	//
-	// Bind the default framebuffer
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		// Draw the framebuffer rectangle
-		framebufferProgram.use();
-		glBindVertexArray(rectVAO);
-		glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
-		glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+	  //
+	  // Bind the default framebuffer
+	  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	  // Draw the framebuffer rectangle
+	  framebufferProgram.use();
+	  glBindVertexArray(rectVAO);
+	  glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
+	  glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+	  glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
 ;
 
